@@ -1,0 +1,176 @@
+---
+title: "lab10-Annie-Chen"
+author: "Annie"
+date: "October 31, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, error = TRUE)
+```
+
+```{r}
+library(dplyr)
+library(stringr)
+library(plotly)
+library(RgoogleMaps)
+library(ggmap)
+```
+
+```{r}
+github <- "https://raw.githubusercontent.com/ucb-stat133/stat133-fall-2018/master/"
+datafile <- "data/mobile-food-sf.csv"
+download.file(paste0(github, datafile), destfile = "mobile-food-sf.csv")
+dat <- read.csv('mobile-food-sf.csv', stringsAsFactors = FALSE)
+```
+
+
+#Changing Times
+```{r}
+time1 <- '10AM'
+str_sub(time1, start = 1, end = 2)
+str_sub(time1, start = 3, end = 4)
+
+times <- c('12PM', '10AM', '9AM', '8AM', '2PM')
+str_sub(times, start = 1, end = nchar(times)-2)
+str_sub(times, start = nchar(times)-1, end = nchar(times))
+str_sub(times, start = -2)
+
+str_replace(times, pattern = 'AM|PM', replacement = '')
+
+hours <- as.numeric(str_replace(times, pattern = 'AM|PM', replacement = ''))
+hours 
+periods <- str_sub(times, start = -2)
+periods
+
+period_freq <- table(periods)
+plot_ly(x = names(period_freq),
+        y = period_freq,
+        type = 'bar')
+
+position <- (periods == 'PM') & (hours < 12) 
+for (i in 1:length(position)) {
+  if (position[i]) {
+    hours[i] <- hours[i] + 12
+  }
+  else {
+    hours[i] <- hours[i]
+  }
+}
+hours
+
+am <- (periods == 'AM') & (hours == 12)
+for (i in 1:length(am)) {
+  if (am[i]) {
+    hours[i] <- 0
+  }
+  else {
+    hours[i] <- hours[i]
+  }
+}
+start24 <- hours
+start24
+```
+#scale24 function that change to 24hr scale
+```{r}
+scale24 <- function(x) {
+  hour <- as.numeric(str_replace(x, pattern = 'AM|PM',                        replacement = ''))
+  period <- str_sub(x, start = -2)
+  p <- (period == 'PM') & (hour < 12) 
+  for (i in 1:length(p)) {
+    if (p[i]) {
+      hour[i] <- hour[i] + 12
+    }
+    else {
+     hour[i] <- hour[i]
+    }
+  }
+  a <- (period == 'AM') & (hour == 12)
+  for (i in 1:length(a)) {
+    if (a[i]) {
+      hour[i] <- 0
+    }
+    else {
+      hour[i] <- hour[i]
+    }
+  }
+  hour
+}
+
+dat$start <- scale24(dat$starttime)
+dat$end <- scale24(dat$endtime)
+dat$duration <- dat$end - dat$start
+```
+
+#Latitude and Longitude Coordinates
+```{r}
+lat_lon <- str_replace_all(dat$Location, pattern = '\\(|\\)', replacement = '')
+lat_lon <- str_split(lat_lon, pattern = ',')
+
+lat <- as.numeric(unlist(lapply(lat_lon, function(x) x[1])))
+head(lat)
+lon <- as.numeric(unlist(lapply(lat_lon, function(x) x[2])))
+head(lon)
+
+dat$lat <- lat
+dat$lon <- lon
+head(dat)
+```
+
+#Plotting locations on a map
+```{r}
+center <- c(mean(dat$lat, na.rm = TRUE), mean(dat$lon, na.rm = TRUE))
+zoom <- min(MaxZoom(range(dat$lat, na.rm = TRUE), 
+                    range(dat$lon, na.rm = TRUE)))
+map1 <- GetMap(center=center, zoom=zoom, destfile = "san-francisco.png")
+PlotOnStaticMap(map1, dat$lat, dat$lon, col = "#ed4964", pch=20)
+```
+
+#Types of food
+```{r}
+foods <- dat$optionaltext
+
+b <- c("Burritos","burritos")
+dat$has_b <- str_detect(foods, pattern = paste(b, collapse = '|'))
+
+t <- c("Tacos","tacos")
+dat$has_t <- str_detect(foods, pattern = paste(t, collapse = '|'))
+
+q <- c("Quesadillas","quesadillas")
+dat$has_q <- str_detect(foods, pattern = paste(q, collapse = '|'))
+
+```
+
+```{r}
+burritos <- data.frame(filter(dat, dat$has_b))
+head(burritos)
+
+center <- c(mean(burritos$lat, na.rm = TRUE), mean(burritos$lon, na.rm = TRUE))
+zoom <- min(MaxZoom(range(burritos$lat, na.rm = TRUE), 
+                    range(burritos$lon, na.rm = TRUE)))
+map1 <- GetMap(center=center, zoom=zoom, destfile = "san-francisco.png")
+PlotOnStaticMap(map1, burritos$lat, burritos$lon, col = "#ed4964", pch=20)
+```
+
+```{r}
+tacos <- data.frame(filter(dat, dat$has_t))
+head(tacos)
+
+center <- c(mean(tacos$lat, na.rm = TRUE), mean(tacos$lon, na.rm = TRUE))
+zoom <- min(MaxZoom(range(tacos$lat, na.rm = TRUE), 
+                    range(tacos$lon, na.rm = TRUE)))
+map1 <- GetMap(center=center, zoom=zoom, destfile = "san-francisco.png")
+PlotOnStaticMap(map1, tacos$lat, tacos$lon, col = "#ed4964", pch=20)
+```
+
+```{r}
+quesadillas <- data.frame(filter(dat, dat$has_q))
+head(quesadillas)
+
+center <- c(mean(quesadillas$lat, na.rm = TRUE), mean(quesadillas$lon, na.rm = TRUE))
+zoom <- min(MaxZoom(range(quesadillas$lat, na.rm = TRUE), 
+                    range(quesadillas$lon, na.rm = TRUE)))
+map1 <- GetMap(center=center, zoom=zoom, destfile = "san-francisco.png")
+PlotOnStaticMap(map1, quesadillas$lat, quesadillas$lon, col = "#ed4964", pch=20)
+```
+
